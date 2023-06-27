@@ -70,7 +70,7 @@ class MPCSession(object):
             meta = {k: v for k, v in self.metadata.items() if k in include_meta}
 
         # determine arrays to include
-        if include_meta == 'all':
+        if include_arrays == 'all':
             array_names = list(self.arrays.keys())
         else:
             array_names = [k for k in self.arrays.keys() if k in include_arrays]
@@ -222,8 +222,8 @@ class SessionCollection(list[MPCSession]):
         Returns:
         DataFrame with data from across this collection
         '''
-        dfs = [session.to_dataframe(include_meta) for session in self]
-        return pd.concat(dfs).reset_index(drop=True).sort_values('time')
+        dfs = [session.to_dataframe(include_arrays=include_arrays, include_meta=include_meta) for session in self]
+        return pd.concat(dfs).sort_values('time').reset_index(drop=True)
 
 
 
