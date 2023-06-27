@@ -1,0 +1,22 @@
+File: C:\MED-PC\Data\2022-11-04_13h06m_Subject 6_EN#61-0823.txt
+
+
+Start Date: 11/04/22
+End Date: 11/04/22
+Subject: 6_EN#61-0823
+Experiment: 20221104
+Group: 6
+Box: 3
+Start Time: 13:06:51
+End Time: 14:40:01
+MSN: CRF
+R:       1.000
+S:    5400.000
+A:
+     0:       90.000       30.000
+B:
+     0:     2157.440
+C:
+     0:     2201.400
+D:
+     0:       43.960

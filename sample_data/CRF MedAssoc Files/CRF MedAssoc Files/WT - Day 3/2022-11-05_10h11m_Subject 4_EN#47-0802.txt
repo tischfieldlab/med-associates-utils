@@ -1,0 +1,22 @@
+File: C:\MED-PC\Data\2022-11-05_10h11m_Subject 4_EN#47-0802.txt
+
+
+Start Date: 11/05/22
+End Date: 11/05/22
+Subject: 4_EN#47-0802
+Experiment: 11052022
+Group: 4
+Box: 1
+Start Time: 10:11:23
+End Time: 11:43:39
+MSN: CRF
+R:       2.000
+S:    5400.000
+A:
+     0:       90.000       30.000
+B:
+     0:      353.730     1500.340
+C:
+     0:      366.520     1512.840
+D:
+     0:       12.790       12.500

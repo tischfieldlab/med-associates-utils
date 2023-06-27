@@ -1,0 +1,170 @@
+\ Copyright (C) 2023 MED Associates, All Rights Reserved.
+
+\ CRF.mpc
+\
+\ Cage light on at start of session
+\ Middle nose poke port open and light on for duration of session
+\ 1 nose poke = 1 pellet delivery (P=1)
+\ Session duration: 90 mins or 30 pellets delivered, whichever comes first
+\ At end of session, home cage light off, nose poke port light off
+\
+\ Measure:
+\ nose poke IR beam cross @ time
+\ total # pellets delivered
+\ food chamber beam cross @ time
+\ time between nose poke IR beam cross and subsequent food chamber IR beam cross
+
+\ Inputs
+^NP1        = 1
+^NP2        = 2
+^NP3        = 3
+^NP4        = 4
+^NP5        = 5
+^HeadEntry  = 6
+
+
+\ Outputs
+^NP1        = 1
+^NP2        = 2
+^NP3        = 3
+^NP4        = 4
+^NP5        = 5
+^MagLight   = 6
+^HouseLight = 7
+^Pellet     = 8
+^WhiteNoise = 9
+^ToneWhite  = 10
+^ToneBlue   = 10
+^ToneGreen  = 10
+^ToneOrange = 10
+
+
+\ A() = Control Variables with Assigned Aliases as Defined
+Var_Alias Session Time (min)                                = A(0)  \ Default = 90 minutes
+Var_Alias Max Reward                                        = A(1)  \ Default = 30
+
+
+\ Constants for Control Variables Array
+^SessionTime     = 0
+^MaxReward       = 1
+
+\ List Data Variables Here
+\  B() = Nosepoke Time Data Array
+\  C() = Magazine Time Data Array
+\  D() = Latency Time Data Array
+\  F() = Reward Time Data Array
+
+\  L   = Latency Timer
+\  R   = Total Reinforcements
+\  S   = Elapsed Time in Session
+
+
+\ List Working Variables Here
+\  E = Subscript for the IRT Array B
+\  I = Subscript for the IRT Array C
+\  O = Subscript for the IRT Array D
+\  U = Subscript for the IRT Array F
+
+
+DIM A = 1
+DIM B = 10000
+DIM C = 10000
+DIM D = 10000
+DIM F = 10000
+
+\ Z-Pulses Used in this Program
+^Z_Pellet     = 1   \ Signal Pellet Reward \ Latency Start
+^Z_Latency    = 2   \ Signal Latency Stop
+
+^Z_End        = 32  \ Signal End of Session
+
+DISKVARS = A, B, C, D, F, R, S
+
+\***************************************************
+\          SET DEFAULTS / SESSON TIMER
+\***************************************************
+S.S.1,
+S1,
+  0.01": SET A(^SessionTime) = 90, A(^MaxReward) = 30;
+         SET B(E) = -987.987, C(I) = -987.987, D(O) = -987.987, F(U) = -987.987 ---> S2   \ Seal Arrays
+
+
+S2,     \ First Statement: Wait for START signal.
+        \
+        \ Second Statement: Update screen display with default values
+        \ for Control Variables.  This will show any changes made via
+        \ the "Configure | Change Variables" Window prior to START.
+  #START: CLEAR 1,200; SHOW 1,Session,S ---> S3
+
+  1": SHOW 1,Session Time,A(^SessionTime), 2,Max Rewards,A(^MaxReward) ---> SX
+
+S3,
+  0.01": SET S = S + 0.01; SHOW 1,Session,S;
+      IF S/60 >= A(^SessionTime) [@EndSession, @ContinueTiming]
+         @End: Z^Z_End ---> S4
+         @Cont: ---> SX
+  #Z^Z_End: ---> S4
+
+S4,     \ Wait for Screen Update and end with
+        \ STOPABORTFLUSH for Automatic Data Saving
+  0.05": ---> STOPABORTFLUSH
+
+
+\***************************************************
+\                   MAIN PROGRAM
+\***************************************************
+S.S.2,
+S1,     \ Turn HouseLight and associated stimulus ON
+  #START: ON ^HouseLight, ^NP3 ---> S2
+
+S2,
+  #R^NP3: Z^Z_Pellet; SET B(E) = S; ADD E; SET B(E) = -987.987 ---> S3
+
+
+S3,
+  #R^HeadEntry: SET C(I) = S; ADD I; SET C(I) = -987.987; Z^Z_Latency ---> S2
+  #R^NP3: Z^Z_Pellet; SET B(E) = S; ADD E; SET B(E) = -987.987 ---> SX
+
+
+
+\***************************************************
+\                   REWARD CONTROL
+\***************************************************
+S.S.3,
+S1,
+  #START: ---> S2
+
+S2,
+  #Z^Z_Pellet: ON ^Pellet; ADD R; SET F(U) = S; ADD U; SET F(U) = -987.987 ---> S3
+
+S3,
+  0.05": OFF ^Pellet; IF R >= A(^MaxReward) [@End, @Cont]
+                            @End: Z^Z_End ---> S1
+                            @Cont: ---> S2
+
+
+
+\***************************************************
+\                  LATENCY TIMER
+\***************************************************
+S.S.4,
+S1,
+  #Z^Z_Pellet: SET L = 0 ---> S2
+
+S2,
+  0.01": SET L = L + 0.01 ---> SX
+  #Z^Z_Latency: SET D(O) = L; ADD O; SET D(O) = -987.987 ---> S1
+
+
+
+\***************************************************
+\                  UPDATE DISPLAY
+\***************************************************
+S.S.5,
+S1,
+  #START: ---> S2
+
+S2,
+  0.01": SHOW 2,Total Rewards,R ---> S2
+
+

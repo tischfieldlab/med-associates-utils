@@ -1,0 +1,22 @@
+File: C:\MED-PC\Data\2022-11-03_16h28m_Subject 7_EN#88-0902.txt
+
+
+Start Date: 11/03/22
+End Date: 11/03/22
+Subject: 7_EN#88-0902
+Experiment: 20221103
+Group: 7
+Box: 2
+Start Time: 16:28:59
+End Time: 17:59:07
+MSN: CRF
+R:       2.000
+S:    5400.000
+A:
+     0:       90.000       30.000
+B:
+     0:       69.760      233.260
+C:
+     0:      141.040      246.970
+D:
+     0:       71.280       13.710
