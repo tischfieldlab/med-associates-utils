@@ -18,7 +18,7 @@ conda create --file environment.yml
 Please checkout the jupyter notebooks available in the `notebooks` directory.
 
 ### Loading Data
-For a working example of data loading basics, please see the notebook at `notebooks/01_Data_Loading.ipynb`.
+Please see the notebook [01_Data_Loading.ipynb](notebooks/01_Data_Loading.ipynb) for a full example of data loading and manipulation basics.
 
 To load event data from the text files produced by the med associates software, use the functions `parse_session()` or `parse_directory()` in the `med_associates_utils.session` module.
 ```
@@ -93,3 +93,21 @@ event_df
 |   3 |   EN#26_1220 |       MT | Day4 |  EN#26 | reward_retrieval_latency | 1.46 |
 |   4 |   EN#26_1220 |       MT | Day4 |  EN#26 | reward_retrieval_latency | 1.48 |
 | ... |          ... |      ... |  ... |    ... |                      ... |  ... |
+
+
+### Cumulative Event Plot
+Generate a plot of cumulative events across days and by genotype using the function `med_associates_utils.viz.plot_cumulative_events()`. Please see the notebook [02_analyze_cumulative_events.ipynb](notebooks/02_analyze_cumulative_events.ipynb) for a full example.
+```
+from med_associates_utils.viz import plot_cumulative_events
+plot_cumulative_events(event_df, col='Day', event='rewarded_nosepoke', individual='Subject', hue='Genotype')
+```
+![Cumulative Events](images/cumulative_events.png)
+
+
+### Event Raster Plot
+Generate a raster plot of events over time, indicating rate via colormap, using the function `med_associates_utils.viz.plot_event_raster()`. Please see the notebook [03_analyze_event_raster_plot.ipynb](notebooks/03_analyze_event_raster_plot.ipynb) for a full example.
+```
+from med_associates_utils.viz import plot_event_raster
+plot_event_raster(event_df)
+```
+![Event Raster](images/event_raster.png)
