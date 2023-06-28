@@ -41,7 +41,7 @@ def plot_cumulative_events(event_df: pd.DataFrame, col: str = 'Day', col_order=N
         plot_cols = sorted(event_df[col].unique())
     else:
         avail_cols = list(event_df[col].unique())
-        plot_cols = [c for c in col_order if c in0 avail_cols]
+        plot_cols = [c for c in col_order if c in avail_cols]
 
     fig, axs = plt.subplots(1, len(plot_cols), figsize=(len(plot_cols) * 5, 5), sharey=True, sharex=True)
     result.fig = fig
