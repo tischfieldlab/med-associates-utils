@@ -1,4 +1,4 @@
-from typing import List, Tuple, Union
+from typing import List, Literal, Tuple, Union
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -134,5 +134,120 @@ def plot_cumulative_events(event_df: pd.DataFrame, col: str = 'Day', col_order=N
     #print(stats.kstest(means['WT'], means['MT']))
     #print(stats.wilcoxon(np.array(means['MT']) - np.array(means['WT'])))
     #print()
+
+    return result
+
+
+class RasterPlotResult():
+    def __init__(self) -> None:
+        fig: Figure
+        sort_order: dict[str, np.ndarray]
+        max_rate: float
+
+
+def plot_event_raster(event_df: pd.DataFrame, col: str = 'Day', col_order=None, row: str = 'Genotype', row_order=None, event: str = 'rewarded_nosepoke',
+                      individual: str = 'Subject', palette: Palette = None, sort_col: str = 'Day4',
+                      rate_max: Union[float, Literal['auto']] = 'auto') -> RasterPlotResult:
+    '''Generate a raster plot of events over time
+
+    Parameters:
+        event_df: DataFrame of events
+        col: column in the dataframe to form plot columns on
+        col_order: order for the columns in the plot. If None, use the natural sorted order of unique items
+        row: column in the dataframe to form plot rows on
+        row_order: order for the rows in the plot. If None, use the natural sorted order of unique items
+        event: the event type to be plotted
+        individual: key in the dataframe for indentifying individual subjects
+        palette: palette of colors to be used.
+        sort_col: col value to sort individuals
+        rate_max: max rate for the ceiling of the colormap, if "auto" calculate max from the data
+
+    Returns:
+        RasterPlotResult containing figure, summary dataframe
+    '''
+    result = RasterPlotResult()
+
+    if col_order is None:
+        plot_cols = sorted(event_df[col].unique())
+    else:
+        avail_cols = list(event_df[col].unique())
+        plot_cols = [c for c in col_order if c in avail_cols]
+
+    if row_order is None:
+        plot_rows = sorted(event_df[row].unique())
+    else:
+        avail_rows = list(event_df[row].unique())
+        plot_rows = [r for r in row_order if r in avail_rows]
+
+    fig, axs = plt.subplots(len(plot_rows), len(plot_cols), figsize=(len(plot_cols) * 5, len(plot_rows) * 2.5), sharey=False, sharex=True)
+    result.fig = fig
+
+
+    raster_events = {c: {r: [] for r in plot_rows} for c in plot_cols}
+    raster_event_rates = {c: {r: [] for r in plot_rows} for c in plot_cols}
+    for ci, c in enumerate(plot_cols):
+        condition = (event_df['event'] == event) & (event_df[col] == c)
+        for ri, r in enumerate(plot_rows):
+            sub_condition = condition & (event_df[row] == r)
+            for animal in sorted(event_df[sub_condition][individual].unique()):
+                sub_sub_condition = sub_condition & (event_df[individual] == animal)
+                events = event_df[sub_sub_condition]['time'].values
+                rate = np.array([0] + list(1 / (np.diff(events) / 60)))
+
+                raster_events[c][r].append(events)
+                raster_event_rates[c][r].append(rate)
+
+    sort_orders = {}
+    for r, r_rates in raster_event_rates[sort_col].items():
+        summaries = []
+        for ai, animal_rates in enumerate(r_rates):
+            #summaries.append(np.median(animal_rates))
+            summaries.append(np.max(raster_events[sort_col][r][ai]))
+        sort_orders[r] = np.argsort(summaries)
+    result.sort_order = sort_orders
+
+    if rate_max == 'auto': 
+        max_rate = 0
+        for c, c_rates in raster_event_rates.items():
+            for r, r_rates in c_rates.items():
+                for animal_rates in r_rates:
+                    curr_max = np.max(animal_rates)
+                    if max_rate < curr_max:
+                        max_rate = curr_max
+    else:
+        max_rate = rate_max
+    result.max_rate = max_rate
+
+
+    # Define a diverging color palette using seaborn
+    palette = sns.diverging_palette(250, 30, l=65, center="dark", as_cmap=True)
+    norm = mpl.colors.Normalize(0, max_rate)  # Update normalization range
+
+
+    # time to build the plot!
+    for ci, c in enumerate(plot_cols):
+        for ri, r in enumerate(plot_rows):
+            ax = axs[ri, ci]
+
+            events = raster_events[c][r]
+            events = [events[s] for s in sort_orders[r] if s < len(events)]
+
+            colors = [[palette(norm(r)) for r in animal] for animal in raster_event_rates[c][r]]
+            colors = [colors[s] for s in sort_orders[r] if s < len(colors)]
+
+            ax.eventplot(events, colors=colors, orientation="horizontal", zorder=.5)
+
+            if ri == 0:
+                ax.set_title(c)
+            else:
+                ax.set_xlabel('Time (minutes)')
+
+            if ci == 0:
+                ax.set_ylabel(r)
+
+            ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(base=600))
+            formatter = mpl.ticker.FuncFormatter(lambda sec, pos: f'{sec / 60:0.0f}')
+            ax.xaxis.set_major_formatter(formatter)
+            sns.despine(ax=ax, left=True)
 
     return result
