@@ -100,6 +100,12 @@ class SessionCollection(list[MPCSession]):
         '''
         return pd.DataFrame([item.metadata for item in self])
 
+    @property
+    def metadata_keys(self) -> List[str]:
+        '''Get a list of the keys present in metadata across all sessions in this collection
+        '''
+        return list(set([key for item in self for key in item.metadata.keys()]))
+
     def add_metadata(self, key: str, value: Any) -> None:
         '''Set a metadata field on each session in this collection
 
