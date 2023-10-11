@@ -91,6 +91,41 @@ class MPCSession(object):
         return pd.DataFrame(events).sort_values('time')
 
 
+    def scalar_dataframe(self, include_scalars: FieldList = 'all', include_meta: FieldList = 'all') -> pd.DataFrame:
+        '''Produce a dataframe with scalar data and metadata.
+
+        Parameters:
+        include_scalars: list of scalar names to include in the dataframe. Special str "all" is also accepted.
+        include_meta: list of metadata fields to include in the dataframe. Special str "all" is also accepted.
+
+        Returns:
+        DataFrame with data from this session
+        '''
+        # determine metadata fileds to include
+        if include_meta == 'all':
+            meta = self.metadata
+        else:
+            meta = {k: v for k, v in self.metadata.items() if k in include_meta}
+
+        # determine scalars to include
+        if include_scalars == 'all':
+            scalar_names = list(self.scalars.keys())
+        else:
+            scalar_names = [k for k in self.scalars.keys() if k in include_scalars]
+
+        scalars = []
+        for sn in scalar_names:
+            scalars.append({
+                **meta,
+                'scalar_name': sn,
+                'scalar_value': self.scalars[sn]
+            })
+
+        return pd.DataFrame(scalars)
+
+
+
+
 class SessionCollection(list[MPCSession]):
     '''Collection of session data'''
 
@@ -230,6 +265,20 @@ class SessionCollection(list[MPCSession]):
         '''
         dfs = [session.to_dataframe(include_arrays=include_arrays, include_meta=include_meta) for session in self]
         return pd.concat(dfs).sort_values('time').reset_index(drop=True)
+
+    def scalar_dataframe(self, include_scalars: FieldList = 'all', include_meta: FieldList = 'all') -> pd.DataFrame:
+        '''Produce a dataframe with array data and metadata across all the sessions in this collection.
+
+        Parameters:
+        include_scalars: list of scalar names to include in the dataframe. Special str "all" is also accepted.
+        include_meta: list of metadata fields to include in the dataframe. Special str "all" is also accepted.
+
+        Returns:
+        DataFrame with data from across this collection
+        '''
+        dfs = [session.scalar_dataframe(include_scalars=include_scalars, include_meta=include_meta) for session in self]
+        return pd.concat(dfs).reset_index(drop=True)
+
 
 
 
