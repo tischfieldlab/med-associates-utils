@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib.figure import Figure
+from matplotlib.cm import ScalarMappable
 
 Palette = Union[str, List[Union[str, Tuple[float, float, float]]]]
 
@@ -179,11 +180,14 @@ class RasterPlotResult():
         fig: Figure
         sort_order: dict[str, np.ndarray]
         max_rate: float
+        rates: dict[str, dict[str, List[np.ndarray]]] # indexed as `rates[column][row][animal][event]`
+        all_rates: list[float] # flattened list of all rates
 
+SORT_METRICS = Literal['max_rate', 'median_rate', 'ttf']
 
 def plot_event_raster(event_df: pd.DataFrame, col: str = 'Day', col_order=None, row: str = 'Genotype', row_order=None, event: str = 'rewarded_nosepoke',
-                      individual: str = 'Subject', palette: Palette = None, sort_col: str = 'Day4',
-                      rate_max: Union[float, Literal['auto']] = 'auto') -> RasterPlotResult:
+                      individual: str = 'Subject', palette: Palette = None, sort_col: str = 'Day4', sort_metric: SORT_METRICS = 'max_rate', sort_dir: Literal['asc', 'dsc'] = 'asc',
+                      rate_max: Union[float, Literal['auto'], str] = 'auto', cmap = None) -> RasterPlotResult:
     '''Generate a raster plot of events over time
 
     Parameters:
@@ -196,13 +200,15 @@ def plot_event_raster(event_df: pd.DataFrame, col: str = 'Day', col_order=None, 
         individual: key in the dataframe for indentifying individual subjects
         palette: palette of colors to be used.
         sort_col: col value to sort individuals
-        rate_max: max rate for the ceiling of the colormap, if "auto" calculate max from the data
+        rate_max: max rate for the ceiling of the colormap. If "auto" calculate max from the data; if float the value is taken literally, if str and ends with "%" the value is interpreted as a percentage.
 
     Returns:
         RasterPlotResult containing figure, summary dataframe
     '''
+    # create a result object to stash results as we go
     result = RasterPlotResult()
 
+    # determine some parameters of the plot layout
     if col_order is None:
         plot_cols = sorted(event_df[col].unique())
     else:
@@ -215,10 +221,11 @@ def plot_event_raster(event_df: pd.DataFrame, col: str = 'Day', col_order=None, 
         avail_rows = list(event_df[row].unique())
         plot_rows = [r for r in row_order if r in avail_rows]
 
+    # construct a figure and axes, and store it in the result object
     fig, axs = plt.subplots(len(plot_rows), len(plot_cols), figsize=(len(plot_cols) * 5, len(plot_rows) * 2.5), sharey=False, sharex=True)
     result.fig = fig
 
-
+    max_time = event_df['time'].max()
     raster_events = {c: {r: [] for r in plot_rows} for c in plot_cols}
     raster_event_rates = {c: {r: [] for r in plot_rows} for c in plot_cols}
     for ci, c in enumerate(plot_cols):
@@ -232,31 +239,61 @@ def plot_event_raster(event_df: pd.DataFrame, col: str = 'Day', col_order=None, 
 
                 raster_events[c][r].append(events)
                 raster_event_rates[c][r].append(rate)
+    result.rates = raster_event_rates
 
     sort_orders = {}
     for r, r_rates in raster_event_rates[sort_col].items():
         summaries = []
         for ai, animal_rates in enumerate(r_rates):
-            #summaries.append(np.median(animal_rates))
-            summaries.append(np.max(raster_events[sort_col][r][ai]))
-        sort_orders[r] = np.argsort(summaries)
+            if sort_metric == 'max_rate':
+                summaries.append(np.max(raster_event_rates[sort_col][r][ai]))
+            elif sort_metric == 'median_rate':
+                summaries.append(np.median(raster_event_rates[sort_col][r][ai]))
+            elif sort_metric == 'ttf':
+                # ttf: Time To Finish
+                # i.e. sort on the max event time
+                summaries.append(max_time - np.max(raster_events[sort_col][r][ai]))
+            else:
+                raise ValueError('Did not understand value "{sort_metric}" for parameter "sort_metric"!')
+
+        if sort_dir == 'asc':
+            sort_orders[r] = np.argsort(summaries)
+        elif sort_dir == 'dsc':
+            sort_orders[r] = np.argsort(summaries)[::-1]
+        else:
+            raise ValueError('Did not understand value "{sort_dir}" for parameter "sort_dir"!')
     result.sort_order = sort_orders
 
-    if rate_max == 'auto': 
-        max_rate = 0
-        for c, c_rates in raster_event_rates.items():
-            for r, r_rates in c_rates.items():
-                for animal_rates in r_rates:
-                    curr_max = np.max(animal_rates)
-                    if max_rate < curr_max:
-                        max_rate = curr_max
-    else:
+    all_rates = []
+    for c, c_rates in raster_event_rates.items():
+        for r, r_rates in c_rates.items():
+            for animal_rates in r_rates:
+                all_rates.extend(animal_rates)
+    result.all_rates = all_rates
+
+    if rate_max == 'auto':
+        max_rate = np.max(all_rates)
+
+    elif isinstance(rate_max, str) and rate_max.endswith("%"):
+        percent = float(rate_max.replace('%', ''))
+        max_rate = np.percentile(all_rates, percent)
+
+    elif isinstance(rate_max, (float, int)):
         max_rate = rate_max
+
+    else:
+        raise ValueError(f'Did not understand argument for `rate_max` = "{rate_max}"')
+
     result.max_rate = max_rate
 
 
     # Define a diverging color palette using seaborn
-    palette = sns.diverging_palette(250, 30, l=65, center="dark", as_cmap=True)
+    if cmap is None:
+        palette = sns.diverging_palette(250, 30, l=65, center="dark", as_cmap=True)
+    elif isinstance(cmap, str):
+        palette = mpl.colormaps[cmap]
+    else:
+        palette = cmap
     norm = mpl.colors.Normalize(0, max_rate)  # Update normalization range
 
 
@@ -273,17 +310,28 @@ def plot_event_raster(event_df: pd.DataFrame, col: str = 'Day', col_order=None, 
 
             ax.eventplot(events, colors=colors, orientation="horizontal", zorder=.5)
 
+            # first row
             if ri == 0:
                 ax.set_title(c)
-            else:
+
+            # last row
+            if ri == len(plot_rows) - 1:
                 ax.set_xlabel('Time (minutes)')
 
+            # first column
             if ci == 0:
                 ax.set_ylabel(r)
 
+            # set tick marks to be every 10 minutes
             ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(base=600))
             formatter = mpl.ticker.FuncFormatter(lambda sec, pos: f'{sec / 60:0.0f}')
             ax.xaxis.set_major_formatter(formatter)
+
+            # remove spines
             sns.despine(ax=ax, left=True)
+
+    # finally, add a single colorbar to the plot
+    cbar_label = ' '.join([part.capitalize() for part in event.split('_')]) + ' Rate'
+    fig.colorbar(ScalarMappable(norm=norm, cmap=palette), ax=axs, location='right', label=cbar_label)
 
     return result
