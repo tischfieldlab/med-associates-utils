@@ -17,7 +17,7 @@ class CumulativeEventsResult():
         stats: pd.DataFrame
 
 
-def plot_cumulative_events(event_df: pd.DataFrame, col: str = 'Day', col_order=None, event: str = 'rewarded_nosepoke', individual: str = 'Subject',
+def plot_cumulative_events(event_df: pd.DataFrame, col: str = 'Day', col_order=None, row: str = None, row_order=None, event: str = 'rewarded_nosepoke', individual: str = 'Subject',
                            palette: Palette = None, hue = None, hue_order = None, indv_alpha: float = 0.1) -> CumulativeEventsResult:
     '''Plot cumulative number of events over time.
 
@@ -43,10 +43,22 @@ def plot_cumulative_events(event_df: pd.DataFrame, col: str = 'Day', col_order=N
         avail_cols = list(event_df[col].unique())
         plot_cols = [c for c in col_order if c in avail_cols]
 
-    fig, axs = plt.subplots(1, len(plot_cols), figsize=(len(plot_cols) * 5, 5), sharey=True, sharex=True)
+    if row is not None:
+        if row_order is None:
+            plot_rows = sorted(event_df[row].unique())
+        else:
+            avail_rows = list(event_df[row].unique())
+            plot_rows = [r for r in row_order if r in avail_rows]
+    else:
+        plot_rows = [None]
+
+    fig, axs = plt.subplots(len(plot_rows), len(plot_cols), figsize=(len(plot_cols) * 5, len(plot_rows) * 5), sharey=True, sharex=True, squeeze=False)
     result.fig = fig
 
     y_label = 'Cumulative ' + ' '.join([part.capitalize() for part in event.split('_')])
+
+    if len(plot_rows) > 1:
+        fig.text(0, 0.5, y_label, rotation='vertical', ha='center', va='top', rotation_mode='anchor')
 
     if hue is not None and hue_order is None:
         hue_order = sorted(event_df[hue].unique())
@@ -56,77 +68,101 @@ def plot_cumulative_events(event_df: pd.DataFrame, col: str = 'Day', col_order=N
 
 
     bins = np.arange(np.ceil(event_df['time'].max()))
+    event_condition = (event_df['event'] == event)
     all_mean_df_items = []
-    for ax, cur_col in zip(axs, plot_cols):
-        condition = (event_df['event'] == event) & (event_df[col] == cur_col)
-        for indv in event_df[individual].unique():
-            sub_condition = condition & (event_df[individual] == indv)
-            sub_data = event_df[sub_condition]
-
-            # check if any events, if none, don't plot -- otherwise we generate a warning!
-            if len(sub_data.index) > 0:
-                sns.ecdfplot(data=event_df[sub_condition],
-                            x='time',
-                            hue=hue,
-                            stat='count',
-                            hue_order=hue_order,
-                            palette=palette,
-                            alpha=indv_alpha,
-                            ax=ax,
-                            legend=False)
-        ax.set_title(cur_col)
-        ax.set_xlabel('Time (minutes)')
-        ax.set_ylabel(y_label)
-        ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(base=600))
-        formatter = mpl.ticker.FuncFormatter(lambda sec, pos: f'{sec / 60:0.0f}')
-        ax.xaxis.set_major_formatter(formatter)
-        sns.despine(ax=ax)
-
-
-        # compute averaged cumulative events
-        mean_df_items = []
-        if hue is None:
-            rows = event_df[condition]
-            num_animals = len(rows[individual].unique())
-            for bin in bins:
-                counts = rows[rows['time'] < bin].value_counts(individual)
-                mean_df_items.append({
-                    col: cur_col,
-                    'time': bin,
-                    f'mean_{event}': counts.sum() / num_animals
-                })
-            mean_palette = None
-            color = '#333333'
-
+    
+    for row_i, cur_row in enumerate(plot_rows):
+        if cur_row is not None:
+            row_condition = event_condition & (event_df[row] == cur_row)
         else:
-            for g, rows in event_df[condition].groupby(hue):
+            row_condition = event_condition
+
+        for col_i, cur_col in enumerate(plot_cols):
+            if cur_col is not None:
+                col_condition = row_condition & (event_df[col] == cur_col)
+            else:
+                col_condition = row_condition
+
+            ax = axs[row_i, col_i]
+
+            for indv in event_df[individual].unique():
+                sub_condition = col_condition & (event_df[individual] == indv)
+                sub_data = event_df[sub_condition]
+
+                # check if any events, if none, don't plot -- otherwise we generate a warning!
+                if len(sub_data.index) > 0:
+                    sns.ecdfplot(data=event_df[sub_condition],
+                                x='time',
+                                hue=hue,
+                                stat='count',
+                                hue_order=hue_order,
+                                palette=palette,
+                                alpha=indv_alpha,
+                                ax=ax,
+                                legend=False)
+            if row_i == 0:
+                ax.set_title(cur_col)
+            ax.set_xlabel('Time (minutes)')
+            if cur_row is None:
+                ax.set_ylabel(y_label)
+            else:
+                ax.set_ylabel(cur_row)
+            ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(base=600))
+            formatter = mpl.ticker.FuncFormatter(lambda sec, pos: f'{sec / 60:0.0f}')
+            ax.xaxis.set_major_formatter(formatter)
+            sns.despine(ax=ax)
+
+
+            # compute averaged cumulative events
+            id_vars = {}
+            if len(plot_cols) > 1:
+                id_vars[col] = cur_col
+            if len(plot_rows) > 1:
+                id_vars[row] = cur_row
+
+            mean_df_items = []
+            if hue is None:
+                rows = event_df[col_condition]
                 num_animals = len(rows[individual].unique())
                 for bin in bins:
                     counts = rows[rows['time'] < bin].value_counts(individual)
                     mean_df_items.append({
-                        col: cur_col,
-                        hue: g,
+                        **id_vars,
                         'time': bin,
                         f'mean_{event}': counts.sum() / num_animals
                     })
-            mean_palette = palette
-            color = None
+                mean_palette = None
+                color = '#333333'
 
-        all_mean_df_items.extend(mean_df_items)
+            else:
+                for g, rows in event_df[col_condition].groupby(hue):
+                    num_animals = len(rows[individual].unique())
+                    for bin in bins:
+                        counts = rows[rows['time'] < bin].value_counts(individual)
+                        mean_df_items.append({
+                            **id_vars,
+                            hue: g,
+                            'time': bin,
+                            f'mean_{event}': counts.sum() / num_animals
+                        })
+                mean_palette = palette
+                color = None
 
-        sns.lineplot(data=pd.DataFrame(mean_df_items),
-                     x='time',
-                     y=f'mean_{event}',
-                     palette=mean_palette,
-                     color=color,
-                     hue=hue,
-                     hue_order=hue_order,
-                     ax=ax,
-                     legend='full' if cur_col == plot_cols[-1] else False)
-        #print(True if cur_col == plot_cols[-1] else False)
+            all_mean_df_items.extend(mean_df_items)
 
-    if hue is not None:
-        sns.move_legend(ax, loc="upper left", bbox_to_anchor=(1, 1))
+            sns.lineplot(data=pd.DataFrame(mean_df_items),
+                        x='time',
+                        y=f'mean_{event}',
+                        palette=mean_palette,
+                        color=color,
+                        hue=hue,
+                        hue_order=hue_order,
+                        ax=ax,
+                        legend='full' if cur_col == plot_cols[-1] else False)
+            #print(True if cur_col == plot_cols[-1] else False)
+
+        if hue is not None:
+            sns.move_legend(ax, loc="upper left", bbox_to_anchor=(1, 1))
 
     result.means = pd.DataFrame(all_mean_df_items)
 
@@ -134,7 +170,7 @@ def plot_cumulative_events(event_df: pd.DataFrame, col: str = 'Day', col_order=N
     #print(stats.kstest(means['WT'], means['MT']))
     #print(stats.wilcoxon(np.array(means['MT']) - np.array(means['WT'])))
     #print()
-
+    fig.tight_layout()
     return result
 
 
