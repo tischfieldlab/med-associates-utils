@@ -312,7 +312,7 @@ def _parse_line(line: str):
     return None, None
 
 
-def parse_directory(path: str, pattern: str = '*.txt') -> SessionCollection:
+def parse_directory(path: str, pattern: str = '*.txt', quiet: bool = False) -> SessionCollection:
     '''Parse a directory containing session data files from MedAssociates
 
     Parameters:
@@ -323,7 +323,7 @@ def parse_directory(path: str, pattern: str = '*.txt') -> SessionCollection:
     SessionCollection with parsed files
     '''
     sessions = SessionCollection()
-    for filepath in tqdm(glob.glob(os.path.join(path, pattern))):
+    for filepath in tqdm(glob.glob(os.path.join(path, pattern)), disable=quiet, leave=False):
         sessions.extend(parse_session(filepath))
     return sessions
 
