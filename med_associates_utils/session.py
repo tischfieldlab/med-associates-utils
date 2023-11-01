@@ -20,6 +20,29 @@ class MPCSession(object):
         self.scalars: dict[str, float] = {}
         self.arrays: dict[str, np.ndarray] = {}
 
+    def describe(self, as_str: bool = False) -> Union[str, None]:
+        buffer = ''
+
+        buffer += 'Metadata:\n'
+        for k, v in self.metadata.items():
+            buffer += f'    {k}: {v}\n'
+        buffer += '\n'
+
+        buffer += 'Scalars:\n'
+        for k, v in self.scalars.items():
+            buffer += f'    "{k}": {v}\n'
+        buffer += '\n'
+
+        buffer += 'Arrays:\n'
+        for k, v in self.arrays.items():
+            buffer += f'    "{k}" with shape {v.shape}:\n    {np.array2string(v, prefix="    ")}\n\n'
+        buffer += '\n'
+
+        if as_str:
+            return buffer
+        else:
+            print(buffer)
+            return None
 
     def rename_array(self, old_name: str, new_name: str):
         ''' Rename a data array, from `old_name` to `new_name`.
