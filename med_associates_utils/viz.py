@@ -12,6 +12,8 @@ Palette = Union[str, List[Union[str, Tuple[float, float, float]]]]
 
 
 class CumulativeEventsResult():
+    '''Object to store results from `plot_cumulative_events()`'''
+
     def __init__(self) -> None:
         fig: Figure
         means: pd.DataFrame
@@ -26,6 +28,8 @@ def plot_cumulative_events(event_df: pd.DataFrame, col: str = 'Day', col_order=N
         event_df: DataFrame of events
         col: column in the dataframe to form plot columns on
         col_order: order for the columns in the plot. If None, use the natural sorted order of unique items
+        row: column in the dataframe to form plot rows on
+        row_order: order for the rows in the plot. If None, use the natural sorted order of unique items
         event: the event type to be plotted
         individual: key in the dataframe for indentifying individual subjects
         palette: palette of colors to be used.
@@ -167,15 +171,13 @@ def plot_cumulative_events(event_df: pd.DataFrame, col: str = 'Day', col_order=N
 
     result.means = pd.DataFrame(all_mean_df_items)
 
-    #print(f'Stats for {day}')
-    #print(stats.kstest(means['WT'], means['MT']))
-    #print(stats.wilcoxon(np.array(means['MT']) - np.array(means['WT'])))
-    #print()
     fig.tight_layout()
     return result
 
 
 class RasterPlotResult():
+    '''Object to store results from `plot_event_raster()`'''
+
     def __init__(self) -> None:
         fig: Figure
         sort_order: dict[str, np.ndarray]
