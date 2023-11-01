@@ -87,8 +87,13 @@ class MPCSession(object):
                         'time': value
                     })
 
-        # finally sort the dataframe by time and return it
-        return pd.DataFrame(events).sort_values('time')
+        df = pd.DataFrame(events)
+
+        # sort the dataframe by time, but check that we have values, otherwise will raise keyerror
+        if len(df.index) > 0:
+            df = df.sort_values('time')
+
+        return df
 
 
     def scalar_dataframe(self, include_scalars: FieldList = 'all', include_meta: FieldList = 'all') -> pd.DataFrame:
