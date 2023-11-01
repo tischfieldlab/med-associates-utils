@@ -351,7 +351,7 @@ def parse_directory(path: str, pattern: str = '*.txt', quiet: bool = False) -> S
     SessionCollection with parsed files
     '''
     sessions = SessionCollection()
-    for filepath in tqdm(glob.glob(os.path.join(path, pattern)), disable=quiet, leave=False):
+    for filepath in tqdm(glob.glob(os.path.join(path, pattern)), disable=quiet, leave=True):
         sessions.extend(parse_session(filepath))
     return sessions
 
@@ -403,6 +403,8 @@ def parse_session(filepath: str) -> SessionCollection:
             if key == 'EndTime':
                 (h,m,s) = [int(MPCDateStringRe.search(match.group(key)).group(g)) for g in ['hour', 'minute', 'second']]
                 data.metadata['EndTime'] = datetime.time(h,m,s)
+                # date should be already read
+                data.metadata['EndDateTime'] = datetime.datetime.combine(data.metadata['EndDate'], data.metadata['EndTime'])
 
             # extract Subject
             if key == 'Subject':
