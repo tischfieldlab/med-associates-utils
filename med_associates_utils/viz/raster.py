@@ -176,10 +176,13 @@ def plot_event_raster(
             if ci == 0:
                 ax.set_ylabel(r)
 
-            # set tick marks to be every 10 minutes
+            # set x-tick marks to be every 10 minutes, and format them into minutes
             ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(base=600))
-            formatter = mpl.ticker.FuncFormatter(lambda sec, pos: f"{sec / 60:0.0f}")
-            ax.xaxis.set_major_formatter(formatter)
+            ax.xaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda sec, pos: f"{sec / 60:0.0f}"))
+
+            # set y-tick marks to be integers only
+            ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(nbins='auto', integer=True))
+            ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda i, pos: f"{int(i + 1)}"))
 
             # remove spines
             sns.despine(ax=ax, left=True)
