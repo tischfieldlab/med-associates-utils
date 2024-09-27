@@ -17,7 +17,6 @@ class CumulativeEventsResult:
 
     fig: Figure
     means: pd.DataFrame
-    stats: pd.DataFrame
 
 
 def plot_cumulative_events(
