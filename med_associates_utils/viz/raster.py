@@ -19,6 +19,7 @@ class RasterPlotResult:
     fig: Figure
     sort_order: Union[dict[str, np.ndarray], None]
     max_rate: float
+    events: dict[Union[str, None], dict[Union[str, None], List[np.ndarray]]]  # indexed as `rates[column][row][animal][event]`
     rates: dict[Union[str, None], dict[Union[str, None], List[np.ndarray]]]  # indexed as `rates[column][row][animal][event]`
     all_rates: list[float]  # flattened list of all rates
 
@@ -112,6 +113,7 @@ def plot_event_raster(
 
                 raster_events[c][r].append(events)
                 raster_event_rates[c][r].append(rate)
+    result.events = raster_events
     result.rates = raster_event_rates
 
     # Compute sorting orders
