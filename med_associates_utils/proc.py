@@ -1,4 +1,4 @@
-from typing import Literal, Union
+from typing import List, Literal, Union
 import pandas as pd
 
 from med_associates_utils.session import FieldList, SessionCollection
@@ -82,3 +82,23 @@ def calculate_event_series_stats(
         return summaries_df
     else:
         raise ValueError(f'Did not understand value provided for `form` parameter. Got "{form}"')
+
+
+def compute_pr_breakpoint(events: pd.DataFrame, event_name: str, grouping: Union[str, List[str]], ratio: int, out_name: str = 'PR'):
+    counted = events[events['event'] == event_name].copy()
+
+    # compute PR ratio at each of the events
+    counted.loc[:, 'running_count'] = counted.groupby(grouping).cumcount() + 1
+    counted.loc[:, out_name] = (counted['running_count'] - 1) * ratio
+
+    # compute the average rate within each ratio
+    counted.loc[:, 'avg_rate'] = counted.groupby(['animal', 'day', 'genotype'])['time'].diff().fillna(1)
+    counted.loc[:, 'avg_rate'] = counted[out_name] / counted['avg_rate']
+    counted.loc[counted[out_name] == 0, 'avg_rate'] = pd.NA
+
+    # call the breakpoints
+    breakpoint_idxs = counted.groupby(grouping)[out_name].idxmax()
+    counted.loc[breakpoint_idxs, 'is_breakpoint'] = True
+    counted.loc[counted.index.difference(breakpoint_idxs), 'is_breakpoint'] = False
+
+    return counted
