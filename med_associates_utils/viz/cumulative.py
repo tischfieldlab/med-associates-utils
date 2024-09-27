@@ -105,7 +105,10 @@ def plot_cumulative_events(
             ax = axs[row_i, col_i]
 
             for indv in event_df[individual].drop_duplicates().values:
-                sub_condition = col_condition & (event_df[individual] == indv).all(axis=1)
+                if isinstance(individual, str):
+                    sub_condition = col_condition & (event_df[individual] == indv)
+                else:
+                    sub_condition = col_condition & (event_df[individual] == indv).all(axis=1)
                 sub_data = event_df[sub_condition]
 
                 # check if any events, if none, don't plot -- otherwise we generate a warning!

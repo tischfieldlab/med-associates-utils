@@ -103,7 +103,10 @@ def plot_event_raster(
                 sub_condition = condition & (event_df[row] == r)
 
             for indv in event_df[sub_condition][individual].drop_duplicates().values:
-                sub_sub_condition = sub_condition & (event_df[individual] == indv).all(axis=1)
+                if isinstance(individual, str):
+                    sub_sub_condition = sub_condition & (event_df[individual] == indv)
+                else:
+                    sub_sub_condition = sub_condition & (event_df[individual] == indv).all(axis=1)
                 events = event_df[sub_sub_condition]["time"].values
                 rate = np.array([0] + list(1 / (np.diff(events) / 60)))
 
