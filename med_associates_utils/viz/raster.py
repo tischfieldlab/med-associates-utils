@@ -33,7 +33,7 @@ def plot_event_raster(
     row: Union[str, None] = None,
     row_order=None,
     event: str = "rewarded_nosepoke",
-    individual: str = "Subject",
+    individual: Union[str, List[str]] = "Subject",
     palette: Palette = None,
     sort_col: Union[str, None] = None,
     sort_metric: SORT_METRICS = "max_rate",
