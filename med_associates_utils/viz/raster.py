@@ -192,6 +192,9 @@ def plot_event_raster(
 
 
 def _compute_sort_order(events, rates, sort_col: str, sort_metric: SORT_METRICS = "max_rate", sort_dir: Literal["asc", "dsc"] = "asc"):
+    if sort_metric == 'ttf':
+        max_time = np.max([z for v in events.values() for x in v.values() for y in x for z in y])
+
     sort_orders = {}
     for r, r_rates in rates[sort_col].items():
         summaries: List[float] = []
@@ -203,7 +206,7 @@ def _compute_sort_order(events, rates, sort_col: str, sort_metric: SORT_METRICS 
             elif sort_metric == "ttf":
                 # ttf: Time To Finish
                 # i.e. sort on the max event time
-                summaries.append(sys.maxsize - np.max(events[sort_col][r][ai]))
+                summaries.append(max_time - np.max(events[sort_col][r][ai]))
             else:
                 raise ValueError('Did not understand value "{sort_metric}" for parameter "sort_metric"!')
 
